@@ -33,3 +33,6 @@
         }
     }
     ```
+
+### 通知テストコード
+https://flutter.salon/plugin/flutter_local_notifications/#Android%E3%81%AE%E8%A8%AD%E5%AE%9A
