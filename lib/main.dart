@@ -1,17 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  FlutterLocalNotificationsPlugin()
-    ..resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission()
-    ..initialize(const InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-      iOS: DarwinInitializationSettings(),
-    ));
+  tz.initializeTimeZones();
 
   runApp(const MyApp());
 }
@@ -38,39 +32,63 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyHomePage> {
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeNotifications();
+  }
+
+  void _initializeNotifications() {
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosSettings = DarwinInitializationSettings();
+    const settings = InitializationSettings(android: androidSettings, iOS: iosSettings);
+
+    flutterLocalNotificationsPlugin.initialize(settings);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'ローカルプッシュ通知 テスト',
-      home: Scaffold(
-        appBar: AppBar(
-          title: const Text('Flutter Test'),
-        ),
-        body: Center(
-          child: FilledButton(
-            onPressed: _onPressed,
-            child: const Text('test'),
-          ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Flutter Test'),
+      ),
+      body: Center(
+        child: FilledButton(
+          onPressed: _scheduleNotification,
+          child: const Text('test'),
         ),
       ),
     );
   }
 
-  void _onPressed() {
-    showLocalNotification('Notification title', 'Notification message');
-  }
+  void _scheduleNotification() async {
+    final now = tz.TZDateTime.now(tz.local);
+    var scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, 7);
 
-  void showLocalNotification(String title, String message) {
-    const androidNotificationDetail = AndroidNotificationDetails(
-        'channel_id', // channel Id
-        'channel_name' // channel Name
-        );
-    const iosNotificationDetail = DarwinNotificationDetails();
-    const notificationDetails = NotificationDetails(
-      iOS: iosNotificationDetail,
-      android: androidNotificationDetail,
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+
+    const androidDetails = AndroidNotificationDetails(
+      'channel_id',
+      'channel_name',
+      importance: Importance.high,
+      priority: Priority.high,
     );
-    FlutterLocalNotificationsPlugin()
-        .show(0, title, message, notificationDetails);
+    const iosDetails = DarwinNotificationDetails();
+    const notificationDetails = NotificationDetails(android: androidDetails, iOS: iosDetails);
+
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      0,
+      'Notification title',
+      'Notification message',
+      scheduledDate,
+      notificationDetails,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle, // 修正
+      matchDateTimeComponents: DateTimeComponents.time, // ここはそのまま
+    );
   }
 }
