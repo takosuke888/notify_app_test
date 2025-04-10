@@ -1,3 +1,4 @@
+import 'dart:io'; // ← 追加
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
@@ -39,6 +40,7 @@ class _MyAppState extends State<MyHomePage> {
   void initState() {
     super.initState();
     _initializeNotifications();
+    requestPermissions(); // ← 追加
   }
 
   void _initializeNotifications() {
@@ -49,24 +51,51 @@ class _MyAppState extends State<MyHomePage> {
     flutterLocalNotificationsPlugin.initialize(settings);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Flutter Test'),
-      ),
-      body: Center(
-        child: FilledButton(
-          onPressed: _scheduleNotification,
-          child: const Text('test'),
-        ),
-      ),
-    );
+  Future<void> requestPermissions() async { // ← 追加
+    if (Platform.isIOS) {
+      await flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+          ?.requestPermissions(
+            alert: true,
+            badge: true,
+            sound: true,
+          );
+    } else if (Platform.isAndroid) {
+      final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+          flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      await androidImplementation?.requestNotificationsPermission();
+    }
   }
+
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      title: const Text('Flutter Test'),
+    ),
+    body: Center(
+      child: Column( // ← Column に変更
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FilledButton(
+            onPressed: _scheduleNotification,
+            child: const Text('test'),
+          ),
+          const SizedBox(height: 16), // ← ボタン間の余白
+          FilledButton(
+            onPressed: requestPermissions,
+            child: const Text('通知許可をリクエスト'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
   void _scheduleNotification() async {
     final now = tz.TZDateTime.now(tz.local);
-    var scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, 7);
+    var scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, 10);
 
     if (scheduledDate.isBefore(now)) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
@@ -87,8 +116,8 @@ class _MyAppState extends State<MyHomePage> {
       'Notification message',
       scheduledDate,
       notificationDetails,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle, // 修正
-      matchDateTimeComponents: DateTimeComponents.time, // ここはそのまま
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle, // ← ここ変更！
+      matchDateTimeComponents: DateTimeComponents.time,
     );
   }
 }
