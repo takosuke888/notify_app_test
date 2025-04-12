@@ -7,6 +7,7 @@ import 'package:timezone/timezone.dart' as tz;
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   tz.initializeTimeZones();
+  tz.setLocalLocation(tz.getLocation("Asia/Tokyo"));
 
   runApp(const MyApp());
 }
@@ -95,7 +96,10 @@ Widget build(BuildContext context) {
 
   void _scheduleNotification() async {
     final now = tz.TZDateTime.now(tz.local);
-    var scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, 10);
+
+    // 通知時間を指定（例: 10時）
+    final notificationTime = 16; 
+    var scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, notificationTime);
 
     if (scheduledDate.isBefore(now)) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
@@ -112,8 +116,8 @@ Widget build(BuildContext context) {
 
     await flutterLocalNotificationsPlugin.zonedSchedule(
       0,
-      'Notification title',
-      'Notification message',
+      '通知テスト',
+      '$notificationTime時の通知です',
       scheduledDate,
       notificationDetails,
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle, // ← ここ変更！
