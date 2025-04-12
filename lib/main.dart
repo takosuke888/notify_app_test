@@ -97,13 +97,8 @@ Widget build(BuildContext context) {
   void _scheduleNotification() async {
     final now = tz.TZDateTime.now(tz.local);
 
-    // 通知時間を指定（例: 10時）
-    final notificationTime = 16; 
-    var scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, notificationTime);
-
-    if (scheduledDate.isBefore(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
-    }
+    // 通知時間（10時と16時）
+    final notificationTimes = [10, 16];
 
     const androidDetails = AndroidNotificationDetails(
       'channel_id',
@@ -114,14 +109,25 @@ Widget build(BuildContext context) {
     const iosDetails = DarwinNotificationDetails();
     const notificationDetails = NotificationDetails(android: androidDetails, iOS: iosDetails);
 
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      0,
-      '通知テスト',
-      '$notificationTime時の通知です',
-      scheduledDate,
-      notificationDetails,
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle, // ← ここ変更！
-      matchDateTimeComponents: DateTimeComponents.time,
-    );
+    for (int i = 0; i < notificationTimes.length; i++) {
+      int hour = notificationTimes[i];
+      tz.TZDateTime scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour);
+
+      // 現在時刻を過ぎていれば翌日に設定
+      if (scheduledDate.isBefore(now)) {
+        scheduledDate = scheduledDate.add(const Duration(days: 1));
+      }
+
+      await flutterLocalNotificationsPlugin.zonedSchedule(
+        i, // 通知IDは重複しないようにiを使用（同じIDを使ってスケジュールすると、そのIDの通知が上書きされます。）
+        '通知テスト',
+        '$hour時の通知です',
+        scheduledDate,
+        notificationDetails,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
+    }
   }
+
 }
